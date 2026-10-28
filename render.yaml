@@ -2,7 +2,7 @@
 # In Render: New > Blueprint > pick this repo. You'll be prompted for the `sync: false` values.
 databases:
   - name: washpro-db
-    plan: basic-256mb
+    plan: free
     databaseName: washpro
     user: washpro
 
@@ -10,7 +10,7 @@ services:
   - type: web
     name: washpro
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm run build
     startCommand: npm start
     healthCheckPath: /api/health
