@@ -1,0 +1,17 @@
+{
+  "name": "washpro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CRM + online booking PWA for power washing and soft washing businesses",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install --include=dev",
+    "build": "npm run install:all && npm --prefix client run build && npm --prefix server run generate",
+    "start": "npm --prefix server run migrate && npm --prefix server run seed && npm --prefix server start",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "test": "npm --prefix server test"
+  }
+}

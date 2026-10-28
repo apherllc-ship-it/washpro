@@ -1,0 +1,44 @@
+{
+  "name": "washpro-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/index.js",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "seed": "node --env-file-if-exists=.env prisma/seed.js",
+    "test": "node --test test/"
+  },
+  "prisma": {
+    "seed": "node --env-file-if-exists=.env prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "6.16.2",
+    "bcryptjs": "2.4.3",
+    "compression": "1.7.5",
+    "cookie-parser": "1.4.7",
+    "express": "4.21.2",
+    "express-rate-limit": "7.5.0",
+    "helmet": "8.0.0",
+    "jsonwebtoken": "9.0.2",
+    "luxon": "3.5.0",
+    "multer": "2.0.2",
+    "nodemailer": "6.9.16",
+    "prisma": "6.16.2",
+    "stripe": "17.5.0",
+    "twilio": "5.4.0",
+    "zod": "3.24.1"
+  },
+  "allowScripts": {
+    "prisma@6.16.2": true,
+    "@prisma/client@6.16.2": true,
+    "@prisma/engines@6.16.2": true
+  }
+}

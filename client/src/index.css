@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  h1, h2, h3 { @apply font-semibold tracking-tight text-slate-900; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
+  .btn-secondary { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+  .btn-ghost { @apply btn text-slate-600 hover:bg-slate-100; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .card { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
+  .input { @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-100; }
+  .label { @apply mb-1 block text-sm font-medium text-slate-700; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+  .table-wrap { @apply overflow-x-auto; }
+  .table { @apply min-w-full divide-y divide-slate-200 text-sm; }
+  .table th { @apply whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  .table td { @apply whitespace-nowrap px-3 py-2.5 text-slate-700; }
+}
+
+/* Google Places autocomplete element */
+gmp-place-autocomplete { width: 100%; color-scheme: light; }

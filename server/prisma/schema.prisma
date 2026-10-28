@@ -1,0 +1,332 @@
+// WashPro database schema (PostgreSQL)
+// Money is stored as Float dollars and rounded to cents in src/lib/pricing.js.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  PRO
+  ADMIN
+}
+
+enum ServiceCategory {
+  POWER_WASH
+  SOFT_WASH
+}
+
+enum MeasureUnit {
+  SQFT
+  LINFT
+  FLAT
+}
+
+enum QuoteStatus {
+  PENDING // saved, waiting for customer confirmation
+  CONFIRMED // customer accepted the price
+  BOOKED // a booking was created from it
+  EXPIRED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  SCHEDULED
+  ON_THE_WAY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DepositStatus {
+  NONE
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum PhotoKind {
+  BEFORE
+  AFTER
+  OTHER
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  name             String
+  phone            String?
+  role             Role      @default(CUSTOMER)
+  active           Boolean   @default(true)
+  smsOptIn         Boolean   @default(false)
+  resetTokenHash   String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  addresses     Address[]
+  quotes        Quote[]
+  bookings      Booking[]      @relation("CustomerBookings")
+  assignedJobs  Booking[]      @relation("ProBookings")
+  crmNotes      CustomerNote[] @relation("NotesAbout")
+  authoredCrm   CustomerNote[] @relation("NotesBy")
+  jobNotes      JobNote[]
+  photos        Photo[]
+  events        BookingEvent[]
+  notifications Notification[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String   @default("Home")
+  formatted String
+  lat       Float?
+  lng       Float?
+  placeId   String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Service {
+  id              String          @id @default(cuid())
+  name            String
+  slug            String          @unique
+  category        ServiceCategory
+  description     String          @default("")
+  unit            MeasureUnit     @default(SQFT)
+  pricePerUnit    Float           @default(0)
+  minimumCharge   Float           @default(0)
+  // Job length = baseMinutes + quantity / unitsPerHour * 60
+  baseMinutes     Int             @default(30)
+  unitsPerHour    Float           @default(1000)
+  // Which surface type in the measuring tool this service suits (driveway, roof, siding...)
+  surfaceType     String          @default("other")
+  active          Boolean         @default(true)
+  sortOrder       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  materials MaterialMultiplier[]
+  addOns    AddOn[]
+}
+
+model MaterialMultiplier {
+  id         String  @id @default(cuid())
+  serviceId  String
+  service    Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name       String
+  multiplier Float   @default(1)
+
+  @@index([serviceId])
+}
+
+model AddOn {
+  id          String      @id @default(cuid())
+  serviceId   String
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name        String
+  description String      @default("")
+  unit        MeasureUnit @default(FLAT) // SQFT/LINFT = priced per measured unit
+  price       Float       @default(0)
+  active      Boolean     @default(true)
+
+  @@index([serviceId])
+}
+
+// Single-row table (id = 1) with business-wide settings.
+model Settings {
+  id                  Int     @id @default(1)
+  businessName        String  @default("WashPro Exterior Cleaning")
+  businessEmail       String  @default("")
+  businessPhone       String  @default("")
+  businessAddress     String  @default("")
+  businessLat         Float?
+  businessLng         Float?
+  timezone            String  @default("America/New_York")
+  travelFreeMiles     Float   @default(15)
+  travelFeePerMile    Float   @default(2)
+  travelFeeMax        Float   @default(75)
+  maxServiceMiles     Float   @default(60)
+  taxRate             Float   @default(0) // percent
+  depositEnabled      Boolean @default(false)
+  depositPercent      Float   @default(25)
+  crews               Int     @default(2)
+  slotIntervalMinutes Int     @default(60)
+  bookingLeadHours    Int     @default(24) // earliest booking from now
+  bookingHorizonDays  Int     @default(60)
+  cancelWindowHours   Int     @default(24) // customer may cancel/reschedule until this many hours before
+  quoteValidDays      Int     @default(30)
+  autoConfirm         Boolean @default(false)
+}
+
+model BusinessHours {
+  dayOfWeek Int     @id // 0 = Sunday ... 6 = Saturday
+  openTime  String  @default("08:00")
+  closeTime String  @default("17:00")
+  closed    Boolean @default(false)
+}
+
+model BlockedDate {
+  id     String @id @default(cuid())
+  date   String @unique // YYYY-MM-DD in business timezone
+  reason String @default("")
+}
+
+model Quote {
+  id              String      @id @default(cuid())
+  number          Int         @unique @default(autoincrement())
+  customerId      String
+  customer        User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status          QuoteStatus @default(PENDING)
+  address         String
+  lat             Float?
+  lng             Float?
+  distanceMiles   Float       @default(0)
+  subtotal        Float
+  travelFee       Float
+  tax             Float
+  total           Float
+  deposit         Float       @default(0)
+  durationMinutes Int
+  customerNotes   String      @default("")
+  validUntil      DateTime
+  confirmedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items   QuoteItem[]
+  booking Booking?
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model QuoteItem {
+  id             String      @id @default(cuid())
+  quoteId        String
+  quote          Quote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  serviceId      String?
+  serviceName    String
+  label          String      @default("")
+  unit           MeasureUnit
+  quantity       Float
+  unitPrice      Float
+  materialName   String?
+  multiplier     Float       @default(1)
+  baseAmount     Float
+  minimumApplied Boolean     @default(false)
+  addOns         Json        @default("[]") // [{name, unit, price, amount}]
+  lineTotal      Float
+  geometry       Json? // drawn polygon / polyline path [{lat,lng}]
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  number          Int           @unique @default(autoincrement())
+  quoteId         String        @unique
+  quote           Quote         @relation(fields: [quoteId], references: [id])
+  customerId      String
+  customer        User          @relation("CustomerBookings", fields: [customerId], references: [id], onDelete: Cascade)
+  proId           String?
+  pro             User?         @relation("ProBookings", fields: [proId], references: [id], onDelete: SetNull)
+  start           DateTime
+  end             DateTime
+  status          BookingStatus @default(REQUESTED)
+  address         String
+  lat             Float?
+  lng             Float?
+  total           Float
+  depositAmount   Float         @default(0)
+  depositStatus   DepositStatus @default(NONE)
+  stripeSessionId String?
+  customerNotes   String        @default("")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  events BookingEvent[]
+  notes  JobNote[]
+  photos Photo[]
+
+  @@index([start])
+  @@index([customerId])
+  @@index([proId])
+  @@index([status])
+}
+
+model BookingEvent {
+  id        String        @id @default(cuid())
+  bookingId String
+  booking   Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  status    BookingStatus
+  note      String        @default("")
+  actorId   String?
+  actor     User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime      @default(now())
+
+  @@index([bookingId])
+}
+
+model JobNote {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  internal  Boolean  @default(true) // internal notes are hidden from customers
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+}
+
+model Photo {
+  id         String    @id @default(cuid())
+  bookingId  String
+  booking    Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  uploaderId String
+  uploader   User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  kind       PhotoKind @default(OTHER)
+  caption    String    @default("")
+  mimeType   String
+  size       Int
+  data       Bytes
+  createdAt  DateTime  @default(now())
+
+  @@index([bookingId])
+}
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   User     @relation("NotesAbout", fields: [customerId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation("NotesBy", fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
